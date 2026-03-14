@@ -26,8 +26,8 @@ func (s *Scanner) ScanTokens() {
 
 func (s *Scanner) scanToken() {
 	currentChar := s.advance()
-	if isDigit(currentChar) {
-		s.integer()
+	if isNumberStart(currentChar) {
+		s.number()
 		return
 	}
 
@@ -48,26 +48,48 @@ func (s *Scanner) scanToken() {
 	}
 }
 
-func (s *Scanner) integer() {
-	for !s.isAtEnd() && (isDigit(s.peek()) || s.isValidUnderscore()) {
+func (s *Scanner) number() {
+	for !s.isAtEnd() && (isNumberStart(s.peek()) || s.isValidUnderscore()) {
 		s.advance()
 	}
 
-	val := s.Source[s.start:s.current]
+	var isFloatingPoint bool
+	if s.peek() == '.' && isDigit(s.peekNext()) {
 
-	cleaned := strings.ReplaceAll(string(val), "_", "")
-	intVal, _ := strconv.Atoi(cleaned)
-	s.addTokenValue(INTEGER, intVal)
+		isFloatingPoint = true
+		s.advance()
+
+		for isDigit(s.peek()) {
+			s.advance()
+		}
+	}
+
+	lexeme := s.Source[s.start:s.current]
+
+	// Cleanup any underscores
+	cleaned := strings.ReplaceAll(string(lexeme), "_", "")
+
+	if isFloatingPoint {
+		floatVal, _ := strconv.ParseFloat(cleaned, 64)
+		s.addTokenValue(FLOAT, floatVal)
+	} else {
+		intVal, _ := strconv.Atoi(cleaned)
+		s.addTokenValue(INTEGER, intVal)
+	}
 }
 
 // Valid underscore means that it should be proceded by another digit value
 // otherwise is not valid
 func (s *Scanner) isValidUnderscore() bool {
-	return s.peek() == '_' && isDigit(s.peekNext())
+	return s.peek() == '_' && isNumberStart(s.peekNext())
 }
 
 func isDigit(b byte) bool {
 	return b >= '0' && b <= '9'
+}
+
+func isNumberStart(b byte) bool {
+	return isDigit(b) || b == '+' || b == '-'
 }
 
 func (s *Scanner) advance() byte {
@@ -77,7 +99,7 @@ func (s *Scanner) advance() byte {
 }
 
 func (s *Scanner) str() {
-	for s.peek() != '"' && s.isAtEnd() {
+	for s.peek() != '"' && !s.isAtEnd() {
 		if s.peek() == '\n' {
 			s.line++
 		}
@@ -89,11 +111,11 @@ func (s *Scanner) str() {
 		panic("Unterminated string")
 	}
 
-	s.advance()
 	// trims the initial and final quotes
+	s.advance()
 	strValue := s.Source[s.start+1 : s.current-1]
 
-	s.addTokenValue(STRING, strValue)
+	s.addTokenValue(STRING, string(strValue))
 }
 
 func (s *Scanner) comment() {
