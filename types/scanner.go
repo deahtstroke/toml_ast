@@ -35,7 +35,11 @@ func (s *Scanner) scanToken() {
 	case '#':
 		s.comment()
 	case '"':
-		s.str()
+		if s.isMultlineStart() {
+			s.multilineBasicString()
+		} else {
+			s.basicString()
+		}
 	case '=':
 		s.addToken(EQUAL)
 	case '\n':
@@ -46,6 +50,22 @@ func (s *Scanner) scanToken() {
 		break
 	default:
 	}
+}
+
+func (s *Scanner) isMultlineStart() bool {
+	if s.isAtEnd() {
+		return false
+	}
+
+	return s.peek() == '"' && s.peekNext() == '"'
+}
+
+func (s *Scanner) isMultilineClosing() bool {
+	if s.isAtEnd() {
+		return false
+	}
+
+	return s.peek() == '"' && s.peekNext() == '"' && s.peekAt(2) == '"'
 }
 
 func (s *Scanner) number() {
@@ -98,24 +118,53 @@ func (s *Scanner) advance() byte {
 	return curr
 }
 
-func (s *Scanner) str() {
-	for s.peek() != '"' && !s.isAtEnd() {
+func (s *Scanner) basicString() {
+	for !s.isAtEnd() && s.peek() != '"' {
 		if s.peek() == '\n' {
 			s.line++
 		}
-
 		s.advance()
 	}
 
 	if s.isAtEnd() {
-		panic("Unterminated string")
+		panic("Unterminated basic string")
 	}
 
 	// trims the initial and final quotes
 	s.advance()
 	strValue := s.Source[s.start+1 : s.current-1]
 
-	s.addTokenValue(STRING, string(strValue))
+	s.addTokenValue(BASIC_STRING, string(strValue))
+}
+
+func (s *Scanner) multilineBasicString() {
+	for !s.isAtEnd() && !s.isMultilineClosing() {
+		if s.peek() == '\n' {
+			s.line++
+		}
+		s.advance()
+	}
+
+	if s.isAtEnd() {
+		panic("Unterminated multiline basic string")
+	}
+
+	s.advance() // Trim first '"'
+	s.advance() // Trim second '"'
+	s.advance() // Trim third '"'
+
+	strValue := s.Source[s.start+3 : s.current-3]
+
+	// trim initial newline value as per the TOML spec
+	if len(strValue) > 0 {
+		if strValue[0] == '\n' {
+			strValue = strValue[1:]
+		} else if strValue[0] == '\r' && len(strValue) > 1 && strValue[1] == '\n' {
+			strValue = strValue[2:]
+		}
+	}
+
+	s.addTokenValue(MULTILINE_BASIC_STRING, string(strValue))
 }
 
 func (s *Scanner) comment() {
@@ -129,19 +178,30 @@ func (s *Scanner) comment() {
 	s.addTokenValue(COMMENT, commentValue)
 }
 
+// Looks at the value of the source at the current index
+// without consuming it
+//
+// Alias for peekAt0
 func (s *Scanner) peek() byte {
-	if s.isAtEnd() {
-		return 0
-	}
-
-	return s.Source[s.current]
+	return s.peekAt(0)
 }
 
+// Looks at the value of the source at the current index + 1
+// without consuming it
+//
+// Alias for peekAt 1
 func (s *Scanner) peekNext() byte {
-	if s.current+1 >= len(s.Source) {
+	return s.peekAt(1)
+}
+
+// Looks at the value of the source at the current index + an
+// arbitrary offset value without consuming it
+func (s *Scanner) peekAt(offset int) byte {
+	if s.current+offset >= len(s.Source) {
 		return 0
 	}
-	return s.Source[s.current+1]
+
+	return s.Source[s.current+offset]
 }
 
 func (s *Scanner) addToken(t TokenType) {
@@ -158,6 +218,8 @@ func (s *Scanner) addTokenValue(t TokenType, value any) {
 	})
 }
 
+// Checks to see if the current pointer is off bounds from the
+// length of the source byte array
 func (s *Scanner) isAtEnd() bool {
 	return s.current >= len(s.Source)
 }

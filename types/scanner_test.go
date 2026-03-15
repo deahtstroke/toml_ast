@@ -127,15 +127,30 @@ func Test_StringNode(t *testing.T) {
 	tests := map[string]struct {
 		source    string
 		text      string
+		tokenType TokenType
 		shouldErr bool
 	}{
 		"normal string no escape characters": {
-			source: `"Hello world!"`,
-			text:   "Hello world!",
+			source:    `"Hello world!"`,
+			tokenType: BASIC_STRING,
+			text:      "Hello world!",
 		},
 		"string with escaped quotes": {
-			source: "\"Hello world!\"",
-			text:   "Hello world!",
+			source:    "\"Hello world!\"",
+			tokenType: BASIC_STRING,
+			text:      "Hello world!",
+		},
+		"multi-line string (should trim the first newline)": {
+			source:    "\"\"\"\nHello my name is\nDaniel!\n\"\"\"",
+			tokenType: MULTILINE_BASIC_STRING,
+			text:      "Hello my name is\nDaniel!\n",
+		},
+		"multi-line string (just for Go)": {
+			source: `"""Hello World!
+My name is.
+"""`,
+			tokenType: MULTILINE_BASIC_STRING,
+			text:      "Hello World!\nMy name is.\n",
 		},
 	}
 
@@ -150,8 +165,8 @@ func Test_StringNode(t *testing.T) {
 
 			s.ScanTokens()
 
-			if s.Tokens[0].Type != STRING {
-				t.Fatalf("Incorrect token type: Expected String %v. Got %v", STRING, s.Tokens[0].Type)
+			if s.Tokens[0].Type != tt.tokenType {
+				t.Fatalf("Incorrect token type: Expected String %v. Got %v", tt.tokenType, s.Tokens[0].Type)
 			}
 
 			if s.Tokens[0].Literal != tt.text {
