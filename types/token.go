@@ -27,6 +27,8 @@ const (
 	FLOAT
 	INTEGER
 
+	BARE_KEY
+
 	EOF
 )
 

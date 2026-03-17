@@ -1,10 +1,5 @@
 package types
 
-import (
-	"strconv"
-	"strings"
-)
-
 type Scanner struct {
 	Source []byte
 	Tokens []Token
@@ -57,59 +52,6 @@ func (s *Scanner) scanToken() {
 	}
 }
 
-func (s *Scanner) isMultlineStart() bool {
-	if s.isAtEnd() {
-		return false
-	}
-
-	return s.peek() == '"' && s.peekNext() == '"'
-}
-
-func (s *Scanner) isMultilineClosing() bool {
-	if s.isAtEnd() {
-		return false
-	}
-
-	return s.peek() == '"' && s.peekNext() == '"' && s.peekAt(2) == '"'
-}
-
-func (s *Scanner) isMultilineLiteralClose() bool {
-	if s.isAtEnd() {
-		return false
-	}
-	return s.peek() == '\'' && s.peekNext() == '\'' && s.peekAt(2) == '\''
-}
-
-func (s *Scanner) number() {
-	for !s.isAtEnd() && (isNumberStart(s.peek()) || s.isValidUnderscore()) {
-		s.advance()
-	}
-
-	var isFloatingPoint bool
-	if s.peek() == '.' && isDigit(s.peekNext()) {
-
-		isFloatingPoint = true
-		s.advance()
-
-		for isDigit(s.peek()) {
-			s.advance()
-		}
-	}
-
-	lexeme := s.Source[s.start:s.current]
-
-	// Cleanup any underscores
-	cleaned := strings.ReplaceAll(string(lexeme), "_", "")
-
-	if isFloatingPoint {
-		floatVal, _ := strconv.ParseFloat(cleaned, 64)
-		s.addTokenValue(FLOAT, floatVal)
-	} else {
-		intVal, _ := strconv.Atoi(cleaned)
-		s.addTokenValue(INTEGER, intVal)
-	}
-}
-
 // Valid underscore means that it should be proceded by another digit value
 // otherwise is not valid
 func (s *Scanner) isValidUnderscore() bool {
@@ -124,74 +66,10 @@ func isAlphanumeric(b byte) bool {
 	return isDigit(b) || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
-func isNumberStart(b byte) bool {
-	return isDigit(b) || b == '+' || b == '-'
-}
-
 func (s *Scanner) advance() byte {
 	curr := s.Source[s.current]
 	s.current++
 	return curr
-}
-
-func (s *Scanner) basicString() {
-	for !s.isAtEnd() && s.peek() != '"' {
-		if s.peek() == '\n' {
-			s.line++
-		}
-		s.advance()
-	}
-
-	if s.isAtEnd() {
-		panic("Unterminated basic string")
-	}
-
-	// trims the initial and final quotes
-	s.advance()
-	strValue := s.Source[s.start+1 : s.current-1]
-
-	s.addTokenValue(BASIC_STRING, string(strValue))
-}
-
-func (s *Scanner) multilineBasicString() {
-	for !s.isAtEnd() && !s.isMultilineClosing() {
-		if s.peek() == '\n' {
-			s.line++
-		}
-		s.advance()
-	}
-
-	if s.isAtEnd() {
-		panic("Unterminated multiline basic string")
-	}
-
-	s.advance() // Trim first '"'
-	s.advance() // Trim second '"'
-	s.advance() // Trim third '"'
-
-	strValue := s.Source[s.start+3 : s.current-3]
-
-	// trim initial newline value as per the TOML spec
-	if len(strValue) > 0 {
-		if strValue[0] == '\n' {
-			strValue = strValue[1:]
-		} else if strValue[0] == '\r' && len(strValue) > 1 && strValue[1] == '\n' {
-			strValue = strValue[2:]
-		}
-	}
-
-	s.addTokenValue(MULTILINE_BASIC_STRING, string(strValue))
-}
-
-func (s *Scanner) comment() {
-	for s.peek() != '\n' && !s.isAtEnd() {
-		s.advance()
-	}
-	commentValue := s.Source[s.start:s.current]
-
-	// make up for finding a newline character
-	s.line++
-	s.addTokenValue(COMMENT, commentValue)
 }
 
 // Looks at the value of the source at the current index

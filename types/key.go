@@ -6,7 +6,7 @@ func (s *Scanner) key() {
 	}
 
 	lexeme := s.Source[s.start:s.current]
-	s.addTokenValue(KEY, string(lexeme))
+	s.addTokenValue(BARE_KEY, string(lexeme))
 }
 
 func isKeyStart(b byte) bool {

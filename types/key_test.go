@@ -13,12 +13,17 @@ func Test_KeyNode(t *testing.T) {
 		"bare key": {
 			source:    []byte("this_is_a_key = \"World!\""),
 			literal:   "this_is_a_key",
-			tokenType: KEY,
+			tokenType: BARE_KEY,
 		},
 		"bare key [no space between keys]": {
 			source:    []byte("this_is_a_key=\"World!\""),
 			literal:   "this_is_a_key",
-			tokenType: KEY,
+			tokenType: BARE_KEY,
+		},
+		"bare key [space between key/value]": {
+			source:    []byte("this_is_a_key = \"World!\""),
+			literal:   "this_is_a_key",
+			tokenType: BARE_KEY,
 		},
 	}
 
