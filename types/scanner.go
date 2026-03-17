@@ -31,6 +31,11 @@ func (s *Scanner) scanToken() {
 		return
 	}
 
+	if isKeyStart(currentChar) {
+		s.key()
+		return
+	}
+
 	switch currentChar {
 	case '#':
 		s.comment()
@@ -66,6 +71,13 @@ func (s *Scanner) isMultilineClosing() bool {
 	}
 
 	return s.peek() == '"' && s.peekNext() == '"' && s.peekAt(2) == '"'
+}
+
+func (s *Scanner) isMultilineLiteralClose() bool {
+	if s.isAtEnd() {
+		return false
+	}
+	return s.peek() == '\'' && s.peekNext() == '\'' && s.peekAt(2) == '\''
 }
 
 func (s *Scanner) number() {
@@ -106,6 +118,10 @@ func (s *Scanner) isValidUnderscore() bool {
 
 func isDigit(b byte) bool {
 	return b >= '0' && b <= '9'
+}
+
+func isAlphanumeric(b byte) bool {
+	return isDigit(b) || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
 func isNumberStart(b byte) bool {

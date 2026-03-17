@@ -123,7 +123,7 @@ func Test_IntegerNode(t *testing.T) {
 	}
 }
 
-func Test_StringNode(t *testing.T) {
+func Test_BasicStringNode(t *testing.T) {
 	tests := map[string]struct {
 		source    string
 		text      string
