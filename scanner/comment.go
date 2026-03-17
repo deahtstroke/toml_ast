@@ -1,4 +1,4 @@
-package types
+package scanner
 
 func (s *Scanner) comment() {
 	for s.peek() != '\n' && !s.isAtEnd() {

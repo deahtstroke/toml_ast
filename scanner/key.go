@@ -1,4 +1,4 @@
-package types
+package scanner
 
 func (s *Scanner) key() {
 	for !s.isAtEnd() && !s.isKeyEnd() {

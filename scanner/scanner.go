@@ -1,4 +1,4 @@
-package types
+package scanner
 
 type Scanner struct {
 	Source []byte
@@ -26,6 +26,7 @@ func (s *Scanner) scanToken() {
 		return
 	}
 
+	// Detects bare-keys only
 	if isKeyStart(currentChar) {
 		s.key()
 		return
