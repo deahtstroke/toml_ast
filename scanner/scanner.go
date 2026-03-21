@@ -45,6 +45,12 @@ func (s *Scanner) scanToken() {
 		s.addToken(EQUAL)
 	case '\n':
 		s.line++
+	case '.':
+		s.addToken(DOT)
+	case '[':
+		s.addToken(LEFT_BRACE)
+	case ']':
+		s.addToken(RIGHT_BRACE)
 	case '\t':
 	case ' ':
 	case '\r':
