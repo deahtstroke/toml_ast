@@ -29,6 +29,12 @@ const (
 
 	BARE_KEY
 
+	// Reserved keywords
+	FALSE
+	TRUE
+	INF
+	NAN
+
 	EOF
 )
 

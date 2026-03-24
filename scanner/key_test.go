@@ -47,3 +47,43 @@ func Test_KeyNode(t *testing.T) {
 		})
 	}
 }
+
+func Test_reservedKeys(t *testing.T) {
+	tests := map[string]struct {
+		source []byte
+		tokenType TokenType
+	}{
+		"false keyword" :{
+			source: []byte("false"),
+			tokenType: FALSE,
+		},
+		"true keyword": {
+			source: []byte("true"),
+			tokenType: TRUE,
+		},
+		"nan keyword": {
+			source: []byte("nan"),
+			tokenType: NAN,
+		},
+		"inf": {
+			source: []byte("inf"),
+			tokenType: INF,
+		},
+	}
+
+	for test, tt := range tests {
+		t.Run(test, func(t *testing.T) {
+			scanner := Scanner {
+				Source: tt.source,
+				current: 0,
+				start: 0,
+				line: 0,
+			}
+
+			scanner.ScanTokens()
+			if scanner.Tokens[0].Type != tt.tokenType {
+				t.Fatalf("Incorrect token type: Expected %v. Got %v", tt.tokenType, scanner.Tokens[0].Type)
+			}
+		})
+	}
+}

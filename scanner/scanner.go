@@ -10,6 +10,13 @@ type Scanner struct {
 	start   int
 }
 
+var reserved = map[string]TokenType{
+	"false": FALSE ,
+	"true": TRUE,
+	"inf": INF,
+	"nan": NAN,
+}
+
 func (s *Scanner) ScanTokens() {
 	for !s.isAtEnd() {
 		s.start = s.current
@@ -21,16 +28,6 @@ func (s *Scanner) ScanTokens() {
 
 func (s *Scanner) scanToken() {
 	currentChar := s.advance()
-	if isNumberStart(currentChar) {
-		s.number()
-		return
-	}
-
-	// Detects bare-keys only
-	if isKeyStart(currentChar) {
-		s.key()
-		return
-	}
 
 	switch currentChar {
 	case '#':
@@ -51,18 +48,34 @@ func (s *Scanner) scanToken() {
 		s.addToken(LEFT_BRACE)
 	case ']':
 		s.addToken(RIGHT_BRACE)
+	case 'f':
+		s.addToken(FALSE)
+	case '+':
+		s.addToken(PLUS)
+	case '-':
+		s.addToken(MINUS)
 	case '\t':
 	case ' ':
 	case '\r':
 		break
 	default:
+	if isDigit(currentChar) {
+		s.number()
+		return
+	}
+
+	// Combines isAlphanumeric + _ and -
+	if isKey(currentChar) {
+		s.key()
+		return
+	}
 	}
 }
 
 // Valid underscore means that it should be proceded by another digit value
 // otherwise is not valid
 func (s *Scanner) isValidUnderscore() bool {
-	return s.peek() == '_' && isNumberStart(s.peekNext())
+	return s.peek() == '_' && isDigit(s.peekNext())
 }
 
 func isDigit(b byte) bool {

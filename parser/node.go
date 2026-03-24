@@ -11,18 +11,20 @@ type Node interface {
 }
 
 type TableNode struct {
-	Segment string
+	Key Node 
 	Tokens []scanner.Token
 }
 
-
+func (n *TableNode) TokenLiteral() string {
+	return "[" + n.Key.TokenLiteral() + "]"
+}
 
 type KeyNode struct {
 	Segments []string
 	Tokens []scanner.Token
 }
 
-func (n *KeyNode) TokenLiteral() string{
+func (n *KeyNode) TokenLiteral() string {
 	var str strings.Builder
 	for _, t := range n.Tokens {
 		str.WriteString(t.Lexeme + " ")
@@ -31,8 +33,8 @@ func (n *KeyNode) TokenLiteral() string{
 }
 
 type KeyValueNode struct {
-	Key string
-	Value any
+	Key *KeyNode
+	Value Node
 	Tokens []scanner.Token
 }
 
@@ -69,4 +71,17 @@ type FloatNode struct {
 
 func (n *FloatNode) TokenLiteral() string {
 	return n.Token.Lexeme
+}
+
+type BooleanNode struct {
+	Value bool
+	Token scanner.Token
+}
+
+func (n *BooleanNode) TokenLiteral() string {
+	if n.Value {
+		return "true"
+	} else {
+		return "false"
+	}
 }

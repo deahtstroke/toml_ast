@@ -22,30 +22,6 @@ func Test_IntegerNode(t *testing.T) {
 			tokenType: INTEGER,
 			literal:   int(12_345),
 		},
-		"negative integer": {
-			source:    `-2443`,
-			lexeme:    `-2443`,
-			tokenType: INTEGER,
-			literal:   int(-2443),
-		},
-		"positive integer": {
-			source:    `+47888`,
-			lexeme:    `+47888`,
-			tokenType: INTEGER,
-			literal:   int(+47888),
-		},
-		"positive integer with underscores": {
-			source:    `+47_888`,
-			lexeme:    `+47_888`,
-			tokenType: INTEGER,
-			literal:   int(+47888),
-		},
-		"negative integer with underscores": {
-			source:    `-47_988`,
-			lexeme:    `-47_988`,
-			tokenType: INTEGER,
-			literal:   int(-47988),
-		},
 		"edge case 1": {
 			source:    `1_2_3_4_5`,
 			lexeme:    `1_2_3_4_5`,

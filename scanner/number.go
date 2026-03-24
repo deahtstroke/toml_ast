@@ -5,12 +5,8 @@ import (
 	"strings"
 )
 
-func isNumberStart(b byte) bool {
-	return isDigit(b) || b == '+' || b == '-'
-}
-
 func (s *Scanner) number() {
-	for !s.isAtEnd() && (isNumberStart(s.peek()) || s.isValidUnderscore()) {
+	for !s.isAtEnd() && (isDigit(s.peek()) || s.isValidUnderscore()) {
 		s.advance()
 	}
 

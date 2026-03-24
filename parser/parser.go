@@ -7,7 +7,7 @@ import (
 )
 
 type Parser struct {
-	Tokens []scanner.Token
+	Tokens  []scanner.Token
 	current int
 }
 
@@ -17,13 +17,46 @@ func NewParser(tokens []scanner.Token) *Parser {
 	}
 }
 
+func (p *Parser) KeyValue() *KeyValueNode {
+	key := p.Key()
+
+	if !p.Match(scanner.EQUAL) {
+		return nil
+	}
+
+	// value := p.value()
+
+	return &KeyValueNode{
+		Key:   key,
+		// Value: value,
+	}
+}
+
+
+// Parse a TOML table which follows the grammar rule:
+// table -> LEFT_BRACKET  RIGHT_BRACKET
+func (p *Parser) Table() *TableNode {
+	if !p.Match(scanner.BARE_KEY, scanner.BASIC_STRING) {
+		return nil
+	}
+	key := p.Key()
+
+	if !p.Match(scanner.RIGHT_BRACE) {
+		return nil
+	}
+
+	return &TableNode{
+		Key: key,
+	}
+}
+
 // Parse a TOML key which follows the grammar rule:
 // key -> (BARE_KEY | STRING) (DOT (BARE_KEY | STRING))*
-func (p *Parser) Key() Node {
+func (p *Parser) Key() *KeyNode {
 	curr := p.previous()
 	node := &KeyNode{
-			Segments: []string{curr.Literal.(string)},
-			Tokens: []scanner.Token{curr},
+		Segments: []string{curr.Literal.(string)},
+		Tokens:   []scanner.Token{curr},
 	}
 
 	for p.Match(scanner.DOT) {
@@ -71,5 +104,5 @@ func (p *Parser) isAtEnd() bool {
 }
 
 func (p *Parser) previous() scanner.Token {
-	return p.Tokens[p.current - 1]
+	return p.Tokens[p.current-1]
 }
