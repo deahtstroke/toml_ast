@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"slices"
 
 	"github.com/deahtstroke/toml-ast/scanner"
@@ -24,14 +25,110 @@ func (p *Parser) KeyValue() *KeyValueNode {
 		return nil
 	}
 
-	// value := p.value()
+	value := p.value()
 
 	return &KeyValueNode{
 		Key:   key,
-		// Value: value,
+		Value: value,
 	}
 }
 
+func (p *Parser) value() Node {
+	if p.Match(scanner.MINUS, scanner.PLUS) {
+		operator := p.previous().Type
+		switch {
+		case p.Match(scanner.FLOAT):
+			return createFloatNode(p, operator)
+		case p.Match(scanner.INTEGER):
+			return createIntNode(p, operator)
+		case p.Match(scanner.INF):
+			return createInfinityNode(p, operator)
+		default:
+			return nil
+		}
+	}
+
+	switch {
+	case p.Match(scanner.FLOAT):
+		return createFloatNode(p, 0)
+	case p.Match(scanner.INTEGER):
+		return createIntNode(p, 0)
+	case p.Match(scanner.FALSE):
+		return createBoolNode(p, scanner.FALSE)
+	case p.Match(scanner.TRUE):
+		return createBoolNode(p, scanner.TRUE)
+	case p.Match(scanner.INF):
+		return createInfinityNode(p, 0)
+	case p.Match(scanner.BASIC_STRING, scanner.MULTILINE_BASIC_STRING):
+		return createStringNode(p)
+	default:
+	}
+
+	return nil
+}
+
+func createStringNode(p *Parser) Node {
+	val, ok := p.previous().Literal.(string)
+	if !ok {
+		return nil
+	}
+
+	return &StringNode{
+		Value: val,
+		Token: p.previous(),
+	}
+}
+
+func createBoolNode(p *Parser, b scanner.TokenType) Node {
+	return &BooleanNode{
+		Value: b == scanner.TRUE,
+		Token: p.previous(),
+	}
+}
+
+func createInfinityNode(p *Parser, operator scanner.TokenType) Node {
+	val := math.MaxInt64
+	if operator == scanner.MINUS {
+		val = -val
+	}
+
+	return &IntegerNode{
+		Value: int64(val),
+		Token: p.previous(),
+	}
+}
+
+func createIntNode(p *Parser, operator scanner.TokenType) Node {
+	val, ok := p.previous().Literal.(int64)
+	if !ok {
+		return nil
+	}
+
+	if operator == scanner.MINUS {
+		val = -val
+	}
+
+	return &IntegerNode{
+		Value: val,
+		Token: p.previous(),
+	}
+}
+
+func createFloatNode(p *Parser, operator scanner.TokenType) Node {
+	val, ok := p.previous().Literal.(float64)
+	if !ok {
+		return nil
+	}
+
+	if operator == scanner.MINUS {
+		val = -val
+	}
+
+	return &FloatNode{
+		Value: val,
+		Token: p.previous(),
+	}
+}
 
 // Parse a TOML table which follows the grammar rule:
 // table -> LEFT_BRACKET  RIGHT_BRACKET
