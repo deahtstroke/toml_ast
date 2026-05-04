@@ -18,6 +18,29 @@ func NewParser(tokens []scanner.Token) *Parser {
 	}
 }
 
+func (p *Parser) Parse() *Document {
+	documentNode := Document{}
+	for !p.isAtEnd() {
+		node := p.parseEntry()
+		if node != nil {
+			documentNode.Nodes = append(documentNode.Nodes, node)
+		}
+	}
+	return &documentNode
+}
+
+func (p *Parser) parseEntry() Node {
+	switch {
+	case p.Match(scanner.LEFT_BRACKET):
+		return p.Table()
+	case p.Match(scanner.BARE_KEY, scanner.BASIC_STRING):
+		return p.KeyValue()
+	default:
+		p.advance()
+		return nil
+	}
+}
+
 func (p *Parser) KeyValue() *KeyValueNode {
 	key := p.Key()
 
@@ -138,7 +161,7 @@ func (p *Parser) Table() *TableNode {
 	}
 	key := p.Key()
 
-	if !p.Match(scanner.RIGHT_BRACE) {
+	if !p.Match(scanner.RIGHT_BRACKET) {
 		return nil
 	}
 

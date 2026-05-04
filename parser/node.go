@@ -10,8 +10,12 @@ type Node interface {
 	TokenLiteral() string
 }
 
+type Document struct {
+	Nodes []Node
+}
+
 type TableNode struct {
-	Key Node 
+	Key    Node
 	Tokens []scanner.Token
 }
 
@@ -21,20 +25,16 @@ func (n *TableNode) TokenLiteral() string {
 
 type KeyNode struct {
 	Segments []string
-	Tokens []scanner.Token
+	Tokens   []scanner.Token
 }
 
 func (n *KeyNode) TokenLiteral() string {
-	var str strings.Builder
-	for _, t := range n.Tokens {
-		str.WriteString(t.Lexeme + " ")
-	}
-	return str.String()
+	return strings.Join(n.Segments, ".")
 }
 
 type KeyValueNode struct {
-	Key *KeyNode
-	Value Node
+	Key    *KeyNode
+	Value  Node
 	Tokens []scanner.Token
 }
 

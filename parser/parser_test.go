@@ -8,6 +8,182 @@ import (
 	"github.com/deahtstroke/toml-ast/scanner"
 )
 
+func Test_TomlTables(t *testing.T) {
+	tests := map[string]struct {
+		tokens          []scanner.Token
+		expectedLiteral string
+		expectedNodes   int
+		shouldErr       bool
+		err             error
+	}{
+		"Table with basic string key": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.LEFT_BRACKET,
+					Lexeme:  "[",
+					Literal: string("["),
+				},
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "HelloWorld",
+					Literal: string("HelloWorld"),
+				},
+				{
+					Type:    scanner.RIGHT_BRACKET,
+					Lexeme:  "]",
+					Literal: string("]"),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			expectedLiteral: "[HelloWorld]",
+			expectedNodes:   1,
+			shouldErr:       false,
+		},
+		"Table with basic dotted string key": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.LEFT_BRACKET,
+					Lexeme:  "[",
+					Literal: string("["),
+				},
+				{
+					Type:    scanner.BASIC_STRING,
+					Lexeme:  "\"Hello.World\"",
+					Literal: string("\"Hello.World\""),
+				},
+				{
+					Type:    scanner.RIGHT_BRACKET,
+					Lexeme:  "]",
+					Literal: string("]"),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			expectedLiteral: "[\"Hello.World\"]",
+			expectedNodes:   1,
+			shouldErr:       false,
+		},
+		"Table with bare dotted key": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.LEFT_BRACKET,
+					Lexeme:  "[",
+					Literal: string("["),
+				},
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "hello",
+					Literal: string("hello"),
+				},
+				{
+					Type:    scanner.DOT,
+					Lexeme:  ".",
+					Literal: string("."),
+				},
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "world",
+					Literal: string("world"),
+				},
+				{
+					Type:    scanner.RIGHT_BRACKET,
+					Lexeme:  "]",
+					Literal: string("]"),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			expectedLiteral: "[hello.world]",
+			expectedNodes:   1,
+			shouldErr:       false,
+		},
+		"Table with bare dotted key and basic string": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.LEFT_BRACKET,
+					Lexeme:  "[",
+					Literal: string("["),
+				},
+				{
+					Type:    scanner.BASIC_STRING,
+					Lexeme:  "\"hello.world\"",
+					Literal: string("\"hello.world\""),
+				},
+				{
+					Type:    scanner.DOT,
+					Lexeme:  ".",
+					Literal: string("."),
+				},
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "bar",
+					Literal: string("bar"),
+				},
+				{
+					Type:    scanner.RIGHT_BRACKET,
+					Lexeme:  "]",
+					Literal: string("]"),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			expectedLiteral: "[\"hello.world\".bar]",
+			expectedNodes:   1,
+			shouldErr:       false,
+		},
+	}
+
+	for test, params := range tests {
+		t.Run(test, func(t *testing.T) {
+			parser := NewParser(params.tokens)
+			doc := parser.Parse()
+
+			length := len(doc.Nodes)
+			if length != params.expectedNodes {
+				t.Errorf("Incorrect length of nodes for root document node: expected: %d, got: %d", params.expectedNodes, length)
+			}
+
+			tokenLiteral := doc.Nodes[0].TokenLiteral()
+			if tokenLiteral != params.expectedLiteral {
+				t.Errorf("Incorrect token literal. Expected: %s. Got: %s", params.expectedLiteral, tokenLiteral)
+			}
+		})
+	}
+}
+
+func Test_Table(t *testing.T) {
+	tokens := []scanner.Token{
+		{
+			Type:    scanner.BASIC_STRING,
+			Lexeme:  "HelloWorld",
+			Literal: "HelloWorld",
+			Line:    0,
+		},
+		{
+			Type:    scanner.RIGHT_BRACKET,
+			Lexeme:  "[",
+			Literal: "[",
+			Line:    0,
+		},
+	}
+	p := NewParser(tokens)
+	tableNode := p.Table()
+
+	if tableNode == nil {
+		t.Errorf("Not expecting node to be nil")
+	}
+
+	keyNode, _ := tableNode.Key.(*KeyNode)
+	if keyNode.Segments[0] != "HelloWorld" {
+		t.Errorf("Wrong key value. Expecting: HelloWorld. Got: %s", tableNode.Key.TokenLiteral())
+	}
+}
+
 func Test_Value(t *testing.T) {
 	tests := map[string]struct {
 		tokens      []scanner.Token
@@ -172,7 +348,6 @@ func Test_Value(t *testing.T) {
 		"true": {
 			tokens: []scanner.Token{
 				{
-
 					Type:   scanner.TRUE,
 					Lexeme: "true",
 					Line:   0,
@@ -191,7 +366,7 @@ func Test_Value(t *testing.T) {
 				},
 			},
 			expNodeType: &StringNode{},
-			expValue: "hello world!",
+			expValue:    "hello world!",
 		},
 	}
 

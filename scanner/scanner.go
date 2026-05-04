@@ -11,10 +11,10 @@ type Scanner struct {
 }
 
 var reserved = map[string]TokenType{
-	"false": FALSE ,
-	"true": TRUE,
-	"inf": INF,
-	"nan": NAN,
+	"false": FALSE,
+	"true":  TRUE,
+	"inf":   INF,
+	"nan":   NAN,
 }
 
 func (s *Scanner) ScanTokens() {
@@ -45,9 +45,9 @@ func (s *Scanner) scanToken() {
 	case '.':
 		s.addToken(DOT)
 	case '[':
-		s.addToken(LEFT_BRACE)
+		s.addToken(LEFT_BRACKET)
 	case ']':
-		s.addToken(RIGHT_BRACE)
+		s.addToken(RIGHT_BRACKET)
 	case 'f':
 		s.addToken(FALSE)
 	case '+':
@@ -59,16 +59,16 @@ func (s *Scanner) scanToken() {
 	case '\r':
 		break
 	default:
-	if isDigit(currentChar) {
-		s.number()
-		return
-	}
+		if isDigit(currentChar) {
+			s.number()
+			return
+		}
 
-	// Combines isAlphanumeric + _ and -
-	if isKey(currentChar) {
-		s.key()
-		return
-	}
+		// Combines isAlphanumeric + _ and -
+		if isKey(currentChar) {
+			s.key()
+			return
+		}
 	}
 }
 

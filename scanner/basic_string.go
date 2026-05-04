@@ -42,8 +42,10 @@ func (s *Scanner) basicString() {
 		panic("Unterminated basic string")
 	}
 
-	// trims the initial and final quotes
 	s.advance()
+
+	// lexeme = s.Source[s.start:s.current] → "hello" (with quotes, handled by addTokenValue)
+	// literal = just the content between the quotes
 	strValue := s.Source[s.start+1 : s.current-1]
 
 	s.addTokenValue(BASIC_STRING, string(strValue))

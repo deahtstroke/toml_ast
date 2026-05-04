@@ -5,8 +5,8 @@ type TokenType uint32
 const (
 	_ TokenType = iota
 	COMMENT
-	LEFT_BRACE
-	RIGHT_BRACE
+	LEFT_BRACKET
+	RIGHT_BRACKET
 	COMMA
 	DOT
 	MINUS
