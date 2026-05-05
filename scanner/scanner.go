@@ -48,8 +48,22 @@ func (s *Scanner) scanToken() {
 		s.addToken(LEFT_BRACKET)
 	case ']':
 		s.addToken(RIGHT_BRACKET)
+	case 't':
+		if s.matchSequence("rue") {
+			s.addTokenValue(TRUE, true)
+			return
+		} else {
+			s.key()
+			return
+		}
 	case 'f':
-		s.addToken(FALSE)
+		if s.matchSequence("alse") {
+			s.addTokenValue(FALSE, false)
+			return
+		} else {
+			s.key()
+			return
+		}
 	case '+':
 		s.addToken(PLUS)
 	case '-':
@@ -70,6 +84,19 @@ func (s *Scanner) scanToken() {
 			return
 		}
 	}
+}
+
+func (s *Scanner) matchSequence(expected string) bool {
+	for i, c := range expected {
+		if s.current+i >= len(s.Source) {
+			return false
+		}
+		if rune(s.Source[s.current+i]) != c {
+			return false
+		}
+	}
+	s.current += len(expected)
+	return true
 }
 
 // Valid underscore means that it should be proceded by another digit value

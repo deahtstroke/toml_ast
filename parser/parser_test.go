@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -153,6 +154,158 @@ func Test_TomlTables(t *testing.T) {
 				t.Errorf("Incorrect token literal. Expected: %s. Got: %s", params.expectedLiteral, tokenLiteral)
 			}
 		})
+	}
+}
+
+func Test_ParseKeyValue(t *testing.T) {
+	keyForms := []struct {
+		tokens      []scanner.Token
+		expectedStr string
+	}{
+		{
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BARE_KEY,
+					Literal: string("foo"),
+					Lexeme:  "foo",
+				},
+			},
+			expectedStr: "foo",
+		},
+		{
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BASIC_STRING,
+					Literal: string("\"foo\""),
+					Lexeme:  "\"foo\"",
+				},
+			},
+			expectedStr: "\"foo\"",
+		},
+		{
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BASIC_STRING,
+					Literal: string("\"foo\""),
+					Lexeme:  "\"foo\"",
+				},
+				{
+					Type: scanner.DOT,
+				},
+				{
+					Type:    scanner.BASIC_STRING,
+					Literal: string("\"bar\""),
+					Lexeme:  "\"bar\"",
+				},
+			},
+			expectedStr: "\"foo\".\"bar\"",
+		},
+		{
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BASIC_STRING,
+					Literal: string("\"foo\""),
+					Lexeme:  "\"foo\"",
+				},
+				{
+					Type: scanner.DOT,
+				},
+				{
+					Type:    scanner.BARE_KEY,
+					Literal: string("bar"),
+					Lexeme:  "bar",
+				},
+			},
+			expectedStr: "\"foo\".bar",
+		},
+	}
+
+	valueForms := []struct {
+		token       scanner.Token
+		expectedStr string
+	}{
+		{
+			token: scanner.Token{
+				Type:    scanner.INTEGER,
+				Literal: int64(314),
+				Lexeme:  "314",
+			},
+			expectedStr: "314",
+		},
+		{
+			token: scanner.Token{
+				Type:    scanner.INTEGER,
+				Literal: int64(-314),
+				Lexeme:  "-314",
+			},
+			expectedStr: "-314",
+		},
+		{
+			token: scanner.Token{
+				Type:    scanner.FLOAT,
+				Literal: float64(3.14),
+				Lexeme:  "3.14",
+			},
+			expectedStr: "3.14",
+		},
+		{
+			token: scanner.Token{
+				Type:    scanner.FLOAT,
+				Literal: float64(-3.14),
+				Lexeme:  "-3.14",
+			},
+			expectedStr: "-3.14",
+		},
+		{
+			token: scanner.Token{
+				Type:    scanner.BASIC_STRING,
+				Literal: string("\"Roses are red, Violets are blue\""),
+				Lexeme:  "\"Roses are red, Violets are blue\"",
+			},
+			expectedStr: "\"Roses are red, Violets are blue\"",
+		},
+		{
+			token: scanner.Token{
+				Type:    scanner.TRUE,
+				Literal: bool(true),
+				Lexeme:  "true",
+			},
+			expectedStr: "true",
+		},
+		{
+			token: scanner.Token{
+				Type:    scanner.FALSE,
+				Literal: bool(false),
+				Lexeme:  "false",
+			},
+			expectedStr: "false",
+		},
+	}
+
+	for _, key := range keyForms {
+		for _, value := range valueForms {
+			testName := fmt.Sprintf("%s = %s", key.expectedStr, value.expectedStr)
+			t.Run(testName, func(t *testing.T) {
+				tokens := []scanner.Token{}
+				tokens = append(tokens, key.tokens...)
+				tokens = append(tokens, scanner.Token{Type: scanner.EQUAL})
+				tokens = append(tokens, value.token)
+				tokens = append(tokens, scanner.Token{Type: scanner.EOF})
+
+				parser := NewParser(tokens)
+				doc := parser.Parse()
+
+				actual, ok := doc.Nodes[0].(*KeyValueNode)
+				if !ok {
+					t.Fatalf("Not a KeyValueNode instance")
+				}
+
+				expected := fmt.Sprintf("%s = %s", key.expectedStr, value.expectedStr)
+				if actual.TokenLiteral() != expected {
+					t.Fatalf("Non matching. Expected: %s. Got: %s", expected, actual.TokenLiteral())
+				}
+			})
+		}
 	}
 }
 

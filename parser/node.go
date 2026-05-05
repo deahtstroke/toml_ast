@@ -39,11 +39,8 @@ type KeyValueNode struct {
 }
 
 func (n *KeyValueNode) TokenLiteral() string {
-	var str strings.Builder
-	for _, t := range n.Tokens {
-		str.WriteString(t.Lexeme + " ")
-	}
-	return str.String()
+	segs := []string{n.Key.TokenLiteral(), n.Value.TokenLiteral()}
+	return strings.Join(segs, " = ")
 }
 
 type StringNode struct {
