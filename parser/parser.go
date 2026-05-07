@@ -32,13 +32,24 @@ func (p *Parser) Parse() (*Document, []ParseError) {
 	documentNode := Document{}
 	for !p.isAtEnd() {
 		node := p.parseEntry()
-
 		if node != nil {
 			documentNode.Nodes = append(documentNode.Nodes, node)
 		}
 	}
 
-	return &documentNode, nil
+	return &documentNode, p.errors
+}
+
+func (p *Parser) Synchronize() {
+	p.advance() // skip the current token
+
+	for !p.isAtEnd() {
+		if p.previous().Type == scanner.NEW_LINE {
+			return
+		}
+
+		p.advance()
+	}
 }
 
 func (p *Parser) addParseError(token scanner.Token, msg string) {
@@ -48,11 +59,15 @@ func (p *Parser) addParseError(token scanner.Token, msg string) {
 func (p *Parser) parseEntry() Node {
 	switch {
 	case p.Match(scanner.LEFT_BRACKET):
+		node := p.Table()
+		if node == nil {
+			p.Synchronize()
+		}
 		return p.Table()
 	case p.Match(scanner.BARE_KEY, scanner.BASIC_STRING):
 		node := p.KeyValue()
 		if node == nil {
-			// synchronize
+			p.Synchronize()
 		}
 		return p.KeyValue()
 	default:
