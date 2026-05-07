@@ -142,7 +142,10 @@ func Test_TomlTables(t *testing.T) {
 	for test, params := range tests {
 		t.Run(test, func(t *testing.T) {
 			parser := NewParser(params.tokens)
-			doc := parser.Parse()
+			doc, errs := parser.Parse()
+			if len(errs) != 0 {
+				t.Fatalf("Incorrect parse tree: %+v", parser.errors)
+			}
 
 			length := len(doc.Nodes)
 			if length != params.expectedNodes {
@@ -293,7 +296,10 @@ func Test_ParseKeyValue(t *testing.T) {
 				tokens = append(tokens, scanner.Token{Type: scanner.EOF})
 
 				parser := NewParser(tokens)
-				doc := parser.Parse()
+				doc, errs := parser.Parse()
+				if len(errs) != 0 {
+					t.Fatalf("Not expecting errors, got: %+v", errs)
+				}
 
 				actual, ok := doc.Nodes[0].(*KeyValueNode)
 				if !ok {
@@ -326,6 +332,9 @@ func Test_Table(t *testing.T) {
 	}
 	p := NewParser(tokens)
 	tableNode := p.Table()
+	if tableNode == nil {
+		t.Fatalf("Parse tree is incorrect")
+	}
 
 	if tableNode == nil {
 		t.Errorf("Not expecting node to be nil")
@@ -527,6 +536,9 @@ func Test_Value(t *testing.T) {
 		t.Run(test, func(t *testing.T) {
 			parser := NewParser(tt.tokens)
 			node := parser.value()
+			if node == nil {
+				t.Fatalf("Incorrect parse tree")
+			}
 
 			gotType := reflect.TypeOf(node)
 			expType := reflect.TypeOf(tt.expNodeType)

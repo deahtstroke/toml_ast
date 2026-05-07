@@ -15,6 +15,7 @@ const (
 	STAR
 	EQUAL
 	HASHTAG
+	NEW_LINE
 
 	QUOTE
 
