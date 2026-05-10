@@ -7,11 +7,6 @@ import (
 	"github.com/deahtstroke/toml-ast/scanner"
 )
 
-type ParseError struct {
-	Token   scanner.Token
-	Message string
-}
-
 type Parser struct {
 	Tokens  []scanner.Token
 	current int
@@ -33,7 +28,7 @@ func (p *Parser) Parse() (*Document, []ParseError) {
 	for !p.isAtEnd() {
 		node := p.parseEntry()
 		if node != nil {
-			documentNode.Nodes = append(documentNode.Nodes, node)
+			documentNode.Content = append(documentNode.Content, node)
 		}
 	}
 
@@ -52,8 +47,8 @@ func (p *Parser) Synchronize() {
 	}
 }
 
-func (p *Parser) addParseError(token scanner.Token, msg string) {
-	p.errors = append(p.errors, ParseError{Token: token, Message: msg})
+func (p *Parser) addParseError(token scanner.Token, msg string, code ParseErrorCode) {
+	p.errors = append(p.errors, ParseError{Token: token, Message: msg, Code: code})
 }
 
 func (p *Parser) parseEntry() Node {
@@ -63,13 +58,13 @@ func (p *Parser) parseEntry() Node {
 		if node == nil {
 			p.Synchronize()
 		}
-		return p.Table()
+		return node
 	case p.Match(scanner.BARE_KEY, scanner.BASIC_STRING):
 		node := p.KeyValue()
 		if node == nil {
 			p.Synchronize()
 		}
-		return p.KeyValue()
+		return node
 	default:
 		p.advance()
 		return nil
@@ -78,12 +73,19 @@ func (p *Parser) parseEntry() Node {
 
 func (p *Parser) KeyValue() *KeyValueNode {
 	key := p.Key()
+	if key == nil {
+		return nil
+	}
+
 	if !p.Match(scanner.EQUAL) {
-		p.addParseError(p.peek(), "expecting assignment operator '=' after key")
+		p.addParseError(p.peek(), "expecting assignment operator '=' after key", ErrMissingAssignmentAfterKey)
 		return nil
 	}
 
 	value := p.value()
+	if value == nil {
+		return nil
+	}
 
 	return &KeyValueNode{
 		Key:   key,
@@ -102,7 +104,7 @@ func (p *Parser) value() Node {
 		case p.Match(scanner.INF):
 			return createInfinityNode(p, operator)
 		default:
-			p.addParseError(p.peek(), "Unable to recognize token that follows -/+")
+			p.addParseError(p.peek(), "Unable to recognize token that follows -/+", ErrUnrecognizedToken)
 			return nil
 		}
 	}
@@ -129,7 +131,7 @@ func (p *Parser) value() Node {
 func createStringNode(p *Parser) Node {
 	val, ok := p.previous().Literal.(string)
 	if !ok {
-		p.addParseError(p.peek(), "Unable to parse value as string")
+		p.addParseError(p.peek(), "Unable to parse value as string", ErrParsingString)
 		return nil
 	}
 
@@ -161,7 +163,7 @@ func createInfinityNode(p *Parser, operator scanner.TokenType) Node {
 func createIntNode(p *Parser, operator scanner.TokenType) Node {
 	val, ok := p.previous().Literal.(int64)
 	if !ok {
-		p.addParseError(p.peek(), "Unable to parse value as int64")
+		p.addParseError(p.peek(), "Unable to parse value as int64", ErrParsingInt)
 		return nil
 	}
 
@@ -178,7 +180,7 @@ func createIntNode(p *Parser, operator scanner.TokenType) Node {
 func createFloatNode(p *Parser, operator scanner.TokenType) Node {
 	val, ok := p.previous().Literal.(float64)
 	if !ok {
-		p.addParseError(p.peek(), "Unable to parse value to float64")
+		p.addParseError(p.peek(), "Unable to parse value to float64", ErrParsingFloat)
 		return nil
 	}
 
@@ -196,14 +198,14 @@ func createFloatNode(p *Parser, operator scanner.TokenType) Node {
 // table -> LEFT_BRACKET  RIGHT_BRACKET
 func (p *Parser) Table() *TableNode {
 	if !p.Match(scanner.BARE_KEY, scanner.BASIC_STRING) {
-		p.addParseError(p.peek(), "expected a key after left-bracket")
+		p.addParseError(p.peek(), "expected a key after left-bracket", ErrMalformedTableKey)
 		return nil
 	}
 
 	key := p.Key()
 
 	if !p.Match(scanner.RIGHT_BRACKET) {
-		p.addParseError(p.peek(), "Expecting closing bracket ']' after key definition")
+		p.addParseError(p.peek(), "Expecting closing bracket ']' after key definition", ErrMissingClosingBracket)
 		return nil
 	}
 
@@ -217,13 +219,13 @@ func (p *Parser) Table() *TableNode {
 func (p *Parser) Key() *KeyNode {
 	curr := p.previous()
 	node := &KeyNode{
-		Segments: []string{curr.Literal.(string)},
+		Segments: []string{curr.Lexeme},
 		Tokens:   []scanner.Token{curr},
 	}
 
 	for p.Match(scanner.DOT) {
 		if !p.Match(scanner.BASIC_STRING, scanner.BARE_KEY) {
-			p.addParseError(p.peek(), "expected string or barekey after dot '.'")
+			p.addParseError(p.peek(), "expected string or barekey after dot '.'", ErrNoKeyAfterDot)
 			return nil
 		}
 

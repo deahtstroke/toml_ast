@@ -15,7 +15,8 @@ func Test_TomlTables(t *testing.T) {
 		expectedLiteral string
 		expectedNodes   int
 		shouldErr       bool
-		err             error
+		errorCount      int
+		errorCodes      []ParseErrorCode
 	}{
 		"Table with basic string key": {
 			tokens: []scanner.Token{
@@ -137,27 +138,184 @@ func Test_TomlTables(t *testing.T) {
 			expectedNodes:   1,
 			shouldErr:       false,
 		},
+		"Should error on KeyValue node with no assignment after key": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "hello",
+					Literal: string("hello"),
+				},
+				{
+					Type:    scanner.FLOAT,
+					Lexeme:  "3.14",
+					Literal: float64(3.14),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			shouldErr:  true,
+			errorCount: 1,
+			errorCodes: []ParseErrorCode{ErrMissingAssignmentAfterKey},
+		},
+		"Should error on KeyValue node with missing key after dot": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "hello",
+					Literal: string("hello"),
+				},
+				{
+					Type:    scanner.DOT,
+					Lexeme:  ".",
+					Literal: string("."),
+				},
+				{
+					Type:    scanner.EQUAL,
+					Lexeme:  "=",
+					Literal: string("="),
+				},
+				{
+					Type:    scanner.FLOAT,
+					Lexeme:  "3.14",
+					Literal: float64(3.14),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			shouldErr:  true,
+			errorCount: 1,
+			errorCodes: []ParseErrorCode{ErrNoKeyAfterDot},
+		},
+		"Should report only missing key after dot even with no assignment": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "hello",
+					Literal: string("hello"),
+				},
+				{
+					Type:    scanner.DOT,
+					Lexeme:  ".",
+					Literal: string("."),
+				},
+				{
+					Type:    scanner.FLOAT,
+					Lexeme:  "3.14",
+					Literal: float64(3.14),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			shouldErr:  true,
+			errorCount: 1,
+			errorCodes: []ParseErrorCode{ErrNoKeyAfterDot},
+		},
+		"Should report error when key is malformed": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.LEFT_BRACKET,
+					Lexeme:  "[",
+					Literal: string("["),
+				},
+				{
+					Type:    scanner.EQUAL,
+					Lexeme:  "=",
+					Literal: string("="),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			shouldErr:  true,
+			errorCount: 1,
+			errorCodes: []ParseErrorCode{ErrMalformedTableKey},
+		},
+		"Should report both key is malformed and no key after dot": {
+			tokens: []scanner.Token{
+				{
+					Type:    scanner.LEFT_BRACKET,
+					Lexeme:  "[",
+					Literal: string("["),
+				},
+				{
+					Type:    scanner.EQUAL,
+					Lexeme:  "=",
+					Literal: string("="),
+				},
+				{
+					Type:    scanner.NEW_LINE,
+					Lexeme:  "\n",
+					Literal: string("\n"),
+				},
+				{
+					Type:    scanner.BARE_KEY,
+					Lexeme:  "hello",
+					Literal: string("hello"),
+				},
+				{
+					Type:    scanner.DOT,
+					Lexeme:  ".",
+					Literal: string("."),
+				},
+				{
+					Type:    scanner.FLOAT,
+					Lexeme:  "3.14",
+					Literal: float64(3.14),
+				},
+				{
+					Type: scanner.EOF,
+				},
+			},
+			shouldErr:  true,
+			errorCount: 2,
+			errorCodes: []ParseErrorCode{ErrMalformedTableKey, ErrNoKeyAfterDot},
+		},
 	}
 
 	for test, params := range tests {
 		t.Run(test, func(t *testing.T) {
 			parser := NewParser(params.tokens)
 			doc, errs := parser.Parse()
+			if params.shouldErr {
+				if len(errs) != params.errorCount {
+					t.Fatalf("Expecting %d errors, found %d: %v", params.errorCount, len(errs), errs)
+				}
+
+				for _, code := range params.errorCodes {
+					if !containsErrorCode(errs, code) {
+						t.Fatalf("Expeced error code %v but was not found in %v", code, errs)
+					}
+				}
+				return
+			}
+
 			if len(errs) != 0 {
 				t.Fatalf("Incorrect parse tree: %+v", parser.errors)
 			}
 
-			length := len(doc.Nodes)
+			length := len(doc.Content)
 			if length != params.expectedNodes {
 				t.Errorf("Incorrect length of nodes for root document node: expected: %d, got: %d", params.expectedNodes, length)
 			}
 
-			tokenLiteral := doc.Nodes[0].TokenLiteral()
+			tokenLiteral := doc.Content[0].NodeLiteral()
 			if tokenLiteral != params.expectedLiteral {
 				t.Errorf("Incorrect token literal. Expected: %s. Got: %s", params.expectedLiteral, tokenLiteral)
 			}
 		})
 	}
+}
+
+func containsErrorCode(errs []ParseError, code ParseErrorCode) bool {
+	for _, err := range errs {
+		if err.Code == code {
+			return true
+		}
+	}
+	return false
 }
 
 func Test_ParseKeyValue(t *testing.T) {
@@ -301,14 +459,14 @@ func Test_ParseKeyValue(t *testing.T) {
 					t.Fatalf("Not expecting errors, got: %+v", errs)
 				}
 
-				actual, ok := doc.Nodes[0].(*KeyValueNode)
+				actual, ok := doc.Content[0].(*KeyValueNode)
 				if !ok {
 					t.Fatalf("Not a KeyValueNode instance")
 				}
 
 				expected := fmt.Sprintf("%s = %s", key.expectedStr, value.expectedStr)
-				if actual.TokenLiteral() != expected {
-					t.Fatalf("Non matching. Expected: %s. Got: %s", expected, actual.TokenLiteral())
+				if actual.NodeLiteral() != expected {
+					t.Fatalf("Non matching. Expected: %s. Got: %s", expected, actual.NodeLiteral())
 				}
 			})
 		}
@@ -336,13 +494,9 @@ func Test_Table(t *testing.T) {
 		t.Fatalf("Parse tree is incorrect")
 	}
 
-	if tableNode == nil {
-		t.Errorf("Not expecting node to be nil")
-	}
-
 	keyNode, _ := tableNode.Key.(*KeyNode)
 	if keyNode.Segments[0] != "HelloWorld" {
-		t.Errorf("Wrong key value. Expecting: HelloWorld. Got: %s", tableNode.Key.TokenLiteral())
+		t.Errorf("Wrong key value. Expecting: HelloWorld. Got: %s", tableNode.Key.NodeLiteral())
 	}
 }
 

@@ -6,41 +6,98 @@ import (
 	"github.com/deahtstroke/toml-ast/scanner"
 )
 
+type Visitor interface {
+	VisitTableNode(*TableNode) error
+	VisitKeyNode(*KeyNode) error
+	VisitKeyValueNode(*KeyValueNode) error
+	VisitStringNode(*StringNode) error
+	VisitIntegerNode(*IntegerNode) error
+	VisitFloatNode(*FloatNode) error
+	VisitBooleanNode(*BooleanNode) error
+}
+
 type Node interface {
-	TokenLiteral() string
+	NodeLiteral() string
+	Accept(Visitor) error
 }
 
+// Top-most node representation of a TOML file
+// in the CST
 type Document struct {
-	Nodes []Node
+	Content []Node
 }
 
+// Trivia really is just comments that start with '#'
+// the only worthwhile state saving for trivia is the
+// raw literal string in the comment
+type Trivia struct {
+	Lexeme string
+}
+
+// Node reprsentation of a TOML table as specified in
+// https://toml.io/en/v1.1.0#table
 type TableNode struct {
-	Key    Node
+	// The key of the TableNode
+	Key Node
+
+	// Any leading comments that may come before the
+	// table itself
+	LeadingComments []Trivia
+
+	// Comments after or in the same line as the table
+	TrailingComments []Trivia
+
+	// Tokens that need to be parsed
 	Tokens []scanner.Token
 }
 
-func (n *TableNode) TokenLiteral() string {
-	return "[" + n.Key.TokenLiteral() + "]"
+func (n *TableNode) NodeLiteral() string {
+	return "[" + n.Key.NodeLiteral() + "]"
 }
 
+func (n *TableNode) Accept(v Visitor) error {
+	return v.VisitTableNode(n)
+}
+
+// Node representation of a Key in the TOML specification
+// https://toml.io/en/v1.1.0#keys
 type KeyNode struct {
+	// Segments that make up the Key
+	// KeyNodes can be made up of bare-keys and quoted-keys
 	Segments []string
-	Tokens   []scanner.Token
+
+	// List of scanner tokens that make up this KeyNode
+	Tokens []scanner.Token
 }
 
-func (n *KeyNode) TokenLiteral() string {
+func (n *KeyNode) NodeLiteral() string {
 	return strings.Join(n.Segments, ".")
 }
 
+func (n *KeyNode) Accept(v Visitor) error {
+	return v.VisitKeyNode(n)
+}
+
+// Node representation of a Key-Value pair in the TOML specification
+// https://toml.io/en/v1.1.0#keyvalue-pair
 type KeyValueNode struct {
-	Key    *KeyNode
-	Value  Node
+	// Key identifier that represents this key-value pair
+	Key *KeyNode
+
+	// Value that this key-value pair has
+	Value Node
+
+	// List of scanner tokens that make up this key-value pair
 	Tokens []scanner.Token
 }
 
-func (n *KeyValueNode) TokenLiteral() string {
-	segs := []string{n.Key.TokenLiteral(), n.Value.TokenLiteral()}
+func (n *KeyValueNode) NodeLiteral() string {
+	segs := []string{n.Key.NodeLiteral(), n.Value.NodeLiteral()}
 	return strings.Join(segs, " = ")
+}
+
+func (n *KeyValueNode) Accept(v Visitor) error {
+	return v.VisitKeyValueNode(n)
 }
 
 type StringNode struct {
@@ -48,8 +105,12 @@ type StringNode struct {
 	Token scanner.Token
 }
 
-func (n *StringNode) TokenLiteral() string {
+func (n *StringNode) NodeLiteral() string {
 	return n.Token.Lexeme
+}
+
+func (n *StringNode) Accept(v Visitor) error {
+	return v.VisitStringNode(n)
 }
 
 type IntegerNode struct {
@@ -57,8 +118,12 @@ type IntegerNode struct {
 	Token scanner.Token
 }
 
-func (n *IntegerNode) TokenLiteral() string {
+func (n *IntegerNode) NodeLiteral() string {
 	return n.Token.Lexeme
+}
+
+func (n *IntegerNode) Accept(v Visitor) error {
+	return v.VisitIntegerNode(n)
 }
 
 type FloatNode struct {
@@ -66,8 +131,12 @@ type FloatNode struct {
 	Token scanner.Token
 }
 
-func (n *FloatNode) TokenLiteral() string {
+func (n *FloatNode) NodeLiteral() string {
 	return n.Token.Lexeme
+}
+
+func (n *FloatNode) Accept(v Visitor) error {
+	return v.VisitFloatNode(n)
 }
 
 type BooleanNode struct {
@@ -75,10 +144,14 @@ type BooleanNode struct {
 	Token scanner.Token
 }
 
-func (n *BooleanNode) TokenLiteral() string {
+func (n *BooleanNode) NodeLiteral() string {
 	if n.Value {
 		return "true"
 	} else {
 		return "false"
 	}
+}
+
+func (n *BooleanNode) Accept(v Visitor) error {
+	return v.VisitBooleanNode(n)
 }
